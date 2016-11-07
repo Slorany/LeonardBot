@@ -221,20 +221,6 @@ function handleCommand(message) {
     }
 
 
-    //PMs a user
-    //admin command
-    if(commandLabel === "whisper") {
-      var recipient = commandArgs[0];
-      recipient = message.guild.members.find('name', recipient);
-      var length = commandArgs.length-1;
-      var fullText = commandArgs.splice(1, length);
-      fullText = fullText.join(' ');
-      console.log(recipient);
-      console.log(fullText);
-      recipient.sendMessage(fullText)
-        .then(message => console.log(`Sent message: ${message.content}`))
-        .catch(console.log);
-    }
 
     if(commandLabel === "serverinfo") {
       var serverCreationDate = message.guild.creationDate;
