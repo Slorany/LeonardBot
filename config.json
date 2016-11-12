@@ -1,0 +1,11 @@
+{
+  "prefix" : "=",
+  "ownerid" : "your ID",
+  "token" : "token of your bot",
+  "joinLink" : "<AuthLink of your bot>",
+  "mysqlHost" : "",
+  "mysqlUser" : "",
+  "mysqlPassword" : "",
+  "mysqlDatabase" : ""
+
+}
