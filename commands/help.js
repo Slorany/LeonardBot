@@ -17,7 +17,7 @@ module.exports = {
         // console.log(helpMessage);
 
       if(!request) {
-        message.author.sendMessage(helpMessage);
+        message.author.sendMessage(helpMessage).then(message.reply("check your PMs."));
       } else if(request === "here") {
         message.channel.sendMessage(helpMessage);
       } else if(listOfCommands.indexOf(request) < 0) {
