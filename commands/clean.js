@@ -1,6 +1,6 @@
 module.exports = {
     name: "clean",
-    help: "clean ## \n \n -> Deletes messages, ## being the number of messages, inferior to 100.",
+    help: "`clean ##` \nDeletes messages, ## being the number of messages, inferior to 100.",
     process: function (client, message, args) {
         var count = parseInt(args[0]);
         if(!count) {

@@ -1,6 +1,6 @@
 module.exports = {
     name: 'makesay',
-    help: 'makesay channel message \n\n Makes the bot send a message containing <message> in a <channel> of the server.',
+    help: '`makesay <channel> <message>` (requires Manage Messages perm) \nMakes the bot send a message containing <message> in a <channel> of the server.',
     process: function (client, message, args, error) {
       try {
         var demandChannel = message.channel;

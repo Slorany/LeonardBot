@@ -1,18 +1,18 @@
 const Discord = require('discord.js');
-const client = new Discord.Client();
+const client = new Discord.Client({autoReconnect: true});
 
 const fs = require("fs");
 
 const config = require("./config.json");
 
-const mysql = require("mysql");
-var connection = mysql.createConnection({
-  host      : config.mysqlHost,
-  user      : config.mysqlUser,
-  password  : config.mysqlPassword,
-  database  : config.mysqlDatabase
-});
-connection.connect();
+// const mysql = require("mysql");
+// var connection = mysql.createConnection({
+//   host      : config.mysqlHost,
+//   user      : config.mysqlUser,
+//   password  : config.mysqlPassword,
+//   database  : config.mysqlDatabase
+// });
+// connection.connect();
 
 const db = require("./db.js");
 
@@ -20,10 +20,19 @@ const commandsFolder = "./commands";
 const commandsList = fs.readdir(commandsFolder, (err, files) => {
   commands = [];
   files.forEach(file => {
-    console.log(file);
+    // console.log(file);
     commands.push(file);
   });
-  console.log(commands);
+  // console.log(commands);
+});
+
+var commands = fs.readdir(commandsFolder, (err, files) => {
+  commands = [];
+  files.forEach(file => {
+    // console.log(file);
+    commands.push(file);
+  });
+  // console.log(commands);
 });
 
 var ownerid = config.ownerid;
@@ -33,6 +42,9 @@ var ownerid = config.ownerid;
 
 process.on("unhandledRejection", err => {
   console.error("Uncaught Promise Error: \n" + err.stack);
+
+
+
 });
 
 process.on('SIGINT', function(message) {
@@ -70,7 +82,7 @@ client.on('guildMemberRemove', function(member) {
   if (guild.id == "182894318913191936") {
       client.channels.find('name', 'traffic').sendMessage("**" + member.user.username + "** has left.");
   } else {
-    guild.defaultChannel.sendMessage("**" + member.user.username + "** has left.");
+    member.guild.defaultChannel.sendMessage(`**${member.user.username}** has left.`);
   }
 });
 
@@ -105,17 +117,21 @@ client.on("guildDelete", function(guild){
 });
 
 
-client.on('presenceUpdate', function(oldMember, newMember) {
-  let guild = newMember.guild;
-  let playRole = guild.roles.find("name", "playing Overwatch");
-  if(!playRole) return;
-
-  if(newMember.user.presence.game && newMember.user.presence.game.name === "Overwatch") {
-    newMember.addRole(playRole);
-  } else if(!newMember.user.presence.game && newMember.roles.has(playRole.id)) {
-    newMember.removeRole(playRole);
-  }
-});
+// client.on('presenceUpdate', function(oldMember, newMember) {
+//   let guild = newMember.guild;
+//   if(guild.id === "229631744708444163") {
+//
+//     let game = newMember.user.presence.game.name;
+//     let playRole = guild.roles.find("name", `${game}`);
+//     if(!playRole) return;
+//
+//     if(newMember.user.presence.game && newMember.user.presence.game.name === "Overwatch") {
+//       newMember.addRole(playRole);
+//     } else if(!newMember.user.presence.game && newMember.roles.has(playRole.id)) {
+//       newMember.removeRole(playRole);
+//     }
+//   }
+// });
 
 
 
@@ -143,24 +159,63 @@ function handleCommand(message) {
   if(message.channel.type == 'text') {
     var command = message.content.split(" ")[0];
     command = command.slice(config.prefix.length);
-    var args = message.content.split(" ").slice(1);
+    var listOfCommands = commands.map(e => e.replace(".js", ""));
+    // console.log(listOfCommands);
 
-    var text = args.join(" ");
-    // if(commandsList.indexOf(command) > -1) {}
+    if(listOfCommands.indexOf(command) < 0) {
+      message.reply("This command doesn't exist (yet?).");
+      return;
+    } else {
+    let args = message.content.split(" ").slice(1);
+
+    let text = args.join(" ");
+
+
 
       var order = require('./commands/' + command + '.js');
 
       var d = new Date().toISOString().replace('T', ' ').substr(0, 19)
 
       var logPlace = message.author.username + " (ID: " + message.author.id + ") on " + message.guild.name + "/#" + message.channel.name + "(" + message.guild.id + "/" + message.channel.id;
-      var logCommand = command + "' with arguments: '" + args + "'"
+      var logCommand = command + "' with arguments: '" + args.join(" ") + "'"
 
       console.log(d + " - " + logPlace + ") tried command '" + logCommand);
 
   // regular commands (not limited by a permission)
         if(command === "help") {
-          order.process(client, message, args, commands, command);
+          order.process(client, message, args, commands, listOfCommands, command);
         }
+
+        if(command === "choose" || command === "choice" || command === "decide" || command === "pick" ) {
+          var req = require('./commands/choose.js')
+            req.process(client, message, args);
+          }
+
+        // if(command === "roll") {
+        //   order.process(client, message, args);
+        // }
+
+        // if(command === "kill") {
+        //   order.process(client, message, args);
+        // }
+
+        if(command === "game") {
+          order.process(client, message);
+        }
+
+
+        // if(command === "role") {
+        //   var role = args.toLowerCase;
+        //   var roles = message.guild.roles;
+        //   roles;
+        //   // console.log(roles);
+        //
+        //   if(roles.indexOf(role) > -1) {
+        //   console.log("sup")
+        //   // order.process(client, message, args);
+        //   }
+        // }
+
 
         if(command === "say") {
           order.process(client, message, args);
@@ -237,22 +292,25 @@ function handleCommand(message) {
 
 
 
+    }
   }
 };
 
 
 // functions
 
-  // clean text for eval
 
 
-  function clean(text) {
-  if (typeof(text) === "string")
-    return text.replace(/`/g, "`" + String.fromCharCode(8203)).replace(/@/g, "@" + String.fromCharCode(8203));
-  else
-      return text;
+  // pick a random item in an array
+function randomArray(arr) {
+  var ret;
+  if (arr.length > 0) {
+    ret = arr[Math.floor(Math.random() * arr.length)];
+  } else {
+    ret = null;
+  }
+  return ret;
 }
-
 
   // seconds to a more human time
 function secondsToString(seconds) {
