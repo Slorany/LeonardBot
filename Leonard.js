@@ -1,18 +1,47 @@
-const Discord = require('discord.js');
+const Discord = require("discord.js");
 const client = new Discord.Client({autoReconnect: true});
 
-const fs = require("fs");
 
+// modules
+const fs = require("fs");
+const ddiff = require("return-deep-diff");
+
+
+// files
 const config = require("./config.json");
 
-// const mysql = require("mysql");
-// var connection = mysql.createConnection({
-//   host      : config.mysqlHost,
-//   user      : config.mysqlUser,
-//   password  : config.mysqlPassword,
-//   database  : config.mysqlDatabase
-// });
-// connection.connect();
+//mysql
+const mysql = require("mysql");
+var connection = mysql.createConnection({
+  host      : config.mysqlHost,
+  user      : config.mysqlUser,
+  password  : config.mysqlPassword,
+  database  : config.mysqlDatabase
+});
+
+connection.connect(function(err){
+  if(err){
+    console.log('Error connecting to database.');
+    console.log(err);
+  } else {
+    console.log('MySQL: Connection established');
+    callDB(connection);
+  }
+});
+
+//tumblr
+// Authenticate via OAuth
+var tumblr = require('tumblr.js');
+var tumblrClient = tumblr.createClient({
+  consumer_key: config.tumblrKey,
+  consumer_secret: config.tumblrSecret,
+  token: config.tumblrToken,
+  token_secret: config.tumblrTokenSecret
+});
+    // Make the request
+tumblrClient.userInfo(function (err, data) {
+        // ...
+});
 
 const db = require("./db.js");
 
@@ -58,81 +87,155 @@ process.on('SIGINT', function(message) {
 
 client.on('ready', function() {
   console.log("I am ready and connected to " + client.guilds.array().length + " servers.");
-  client.guilds.find('name', 'Leonard Bot').defaultChannel.sendMessage("I am ready and connected to " + client.guilds.array().length + " servers.");
-
-  // var games = [":help", "by @Slorany#6720", "watching you..."]
-  // var randomGame = setInterval(function(){
-  //   (Math.floor(Math.random()*(games.length -1))+1)
-  // }, 30);
-  // var playing = games[randomGame];
-  // client.user.presence.setGame(playing);
 });
 
 client.on('guildMemberAdd', function(member) {
   let guild = member.guild;
   if (guild.id == "182894318913191936") {
-      client.channels.find('name', 'traffic').sendMessage("Welcome to the " + guild.name + ", **" + member.user.username + "**");
+    member.guild.channels.get("183670707522109440").sendMessage('', {embed: {
+      color: 3394611,
+      author: {
+        name: "New member",
+        icon_url: member.user.avatarURL
+      },
+      title: `${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`,
+      timestamp: new Date(),
+      footer: {
+        icon_url: client.user.avatarURL
+      }
+    }});
+  } else if(guild.id == "197160100274634752") {
+      return;
+  } else if(guild.id == "216702535656800257") {
+    member.guild.defaultChannel.sendMessage(`Welcome to Learn a Lang!, ${member.user}!\nYou will find instructions about how you can set up your roles and get access to the rest of the server in a PM from our bot Chomsky.\n**Type the commands here, one command per message.**`);
   } else {
-    member.guild.defaultChannel.sendMessage(`Welcome to ${guild.name}, ${member.user}!`);
+    member.guild.defaultChannel.sendMessage('', {embed: {
+      color: 3394611,
+      author: {
+        name: "New member",
+        icon_url: member.user.avatarURL
+      },
+      title: `${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`,
+      timestamp: new Date(),
+      footer: {
+        icon_url: client.user.avatarURL
+      }
+    }});
   }
 });
 
 client.on('guildMemberRemove', function(member) {
   let guild = member.guild;
   if (guild.id == "182894318913191936") {
-      client.channels.find('name', 'traffic').sendMessage("**" + member.user.username + "** has left.");
+    member.guild.channels.get("183670707522109440").sendMessage('', {embed: {
+        color: 16744192,
+        author: {
+          name: "A member has left",
+          icon_url: member.user.avatarURL
+        },
+        title: `${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`,
+        timestamp: new Date(),
+        footer: {
+          icon_url: client.user.avatarURL
+        }
+      }});
   } else {
-    member.guild.defaultChannel.sendMessage(`**${member.user.username}** has left.`);
+    member.guild.defaultChannel.sendMessage('', {embed: {
+      color: 16744192,
+      author: {
+        name: "A member has left",
+        icon_url: member.user.avatarURL
+      },
+      title: `${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`,
+      timestamp: new Date(),
+      footer: {
+        icon_url: client.user.avatarURL
+      }
+    }});
   }
 });
 
 
 client.on('guildCreate', function(guild) {
   console.log(`I have been added to the server ${guild.name}, owned by ${guild.owner.user.username}.`);
-  client.guilds.find('name', 'Leonard Bot').defaultChannel.sendMessage(`I have been added to the server ${guild.name}, owned by ${guild.owner.user.username}.`);
+  client.channels.get('258955100314140672').sendMessage(`I have been added to the server ${guild.name}, owned by ${guild.owner.user.username}.\n**Total servers:** ${client.guilds.array().length}.`);
+});
 
-    var serversinfo = {
-    "servername": "'" + guild.name + "'",
-    "serverid": guild.id,
-    "ownerid": guild.owner.id
+client.on('guildDelete', function(guild){
+  client.channels.get('258955100314140672').sendMessage(`The server ${guild.name} didn't want me there anymore. :(\n**Total servers:** ${client.guilds.array().length}.`);
+});
+
+client.on("guildBanAdd", function(guild, user) {
+  if (guild.id == "182894318913191936") {
+    guild.channels.get("183670707522109440").sendMessage('', {embed: {
+      color: 13382451,
+      author: {
+        name: user.username + '#' + user.discriminator,
+        icon_url: user.avatarURL
+      },
+      title: 'A member has been banned',
+      description: `${user.username}#${user.discriminator} (ID: ${user.id}) has been banned.`,
+      timestamp: new Date(),
+      footer: {
+        icon_url: client.user.avatarURL
+      }
+    }});
+  } else {
+    guild.defaultChannel.sendMessage('', {embed: {
+      color: 13382451,
+      author: {
+        name: user.username + '#' + user.discriminator,
+        icon_url: user.avatarURL
+      },
+      title: 'A member has been banned',
+      description: `${user.username}#${user.discriminator} (ID: ${user.id}) has been banned.`,
+      timestamp: new Date(),
+      footer: {
+        icon_url: client.user.avatarURL
+      }
+    }});
   }
-  connection.query("INSERT INTO servers SET ?", serversinfo, function(error) {
-    if(error) {
-      console.log(error);
-      return;
-    }
-    console.log("Server " + guild.name + " succesfully inserted.")
-  })
 });
 
-client.on("guildDelete", function(guild){
-  console.log("Trying to remove " + guild.name + " from the database...");
-  connection.query("DELETE FROM servers WHERE serverid = '" + guild.id + "'", function(error) {
-    if (error) {
-      console.log(error);
-      return;
-    }
-    console.log("Server succesfully removed!");
-  });
+client.on("guildBanRemove", function(guild, user) {
+  if (guild.id == "182894318913191936") {
+    guild.channels.get("183670707522109440").sendMessage('', {embed: {
+      color: 3355596,
+      author: {
+        name: user.username + '#' + user.discriminator,
+        icon_url: user.avatarURL
+      },
+      title: 'A member has been unbanned',
+      description: `${user.username}#${user.discriminator} (ID: ${user.id}) has been unbanned.`,
+      timestamp: new Date(),
+      footer: {
+        icon_url: client.user.avatarURL
+      }
+    }});
+  } else {
+    guild.defaultChannel.sendMessage('', {embed: {
+      color: 3355596,
+      author: {
+        name: user.username + '#' + user.discriminator,
+        icon_url: user.avatarURL
+      },
+      title: 'A member has been unbanned',
+      description: `${user.username}#${user.discriminator} (ID: ${user.id}) has been unbanned.`,
+      timestamp: new Date(),
+      footer: {
+        icon_url: client.user.avatarURL
+      }
+    }});
+  }
 });
 
+client.on('guildMemberUpdate', function(oMember, nMember) {
+  // console.log(ddiff(oMember, nMember));
+});
 
-// client.on('presenceUpdate', function(oldMember, newMember) {
-//   let guild = newMember.guild;
-//   if(guild.id === "229631744708444163") {
-//
-//     let game = newMember.user.presence.game.name;
-//     let playRole = guild.roles.find("name", `${game}`);
-//     if(!playRole) return;
-//
-//     if(newMember.user.presence.game && newMember.user.presence.game.name === "Overwatch") {
-//       newMember.addRole(playRole);
-//     } else if(!newMember.user.presence.game && newMember.roles.has(playRole.id)) {
-//       newMember.removeRole(playRole);
-//     }
-//   }
-// });
-
+client.on('guildUpdate', function(oGuild, nGuild) {
+  // console.log(ddiff(oGuild, nGuild));
+});
 
 
 
@@ -163,24 +266,20 @@ function handleCommand(message) {
     // console.log(listOfCommands);
 
     if(listOfCommands.indexOf(command) < 0) {
-      message.reply("This command doesn't exist (yet?).");
       return;
     } else {
     let args = message.content.split(" ").slice(1);
-
     let text = args.join(" ");
 
+    var order = require('./commands/' + command + '.js');
 
+    var d = new Date().toISOString().replace('T', ' ').substr(0, 19)
+    var logPlace = message.author.username + " (ID: " + message.author.id + ") on " + message.guild.name + "/#" + message.channel.name + "(" + message.guild.id + "/" + message.channel.id;
+    var logCommand = command + "' with arguments: '" + args.join(" ") + "'"
 
-      var order = require('./commands/' + command + '.js');
+    console.log(d + " - " + logPlace + ") tried command '" + logCommand);
 
-      var d = new Date().toISOString().replace('T', ' ').substr(0, 19)
-
-      var logPlace = message.author.username + " (ID: " + message.author.id + ") on " + message.guild.name + "/#" + message.channel.name + "(" + message.guild.id + "/" + message.channel.id;
-      var logCommand = command + "' with arguments: '" + args.join(" ") + "'"
-
-      console.log(d + " - " + logPlace + ") tried command '" + logCommand);
-
+    order.process(client, message, args, commands, listOfCommands, command, connection);
   // regular commands (not limited by a permission)
         if(command === "help") {
           order.process(client, message, args, commands, listOfCommands, command);
@@ -191,33 +290,45 @@ function handleCommand(message) {
             req.process(client, message, args);
           }
 
-        // if(command === "roll") {
-        //   order.process(client, message, args);
-        // }
+
+        if(command === "syntaxtest") {
+          order.process(client, message, args);
+        }
 
         // if(command === "kill") {
         //   order.process(client, message, args);
         // }
 
+        if(command === "rules") {
+           if(message.guild.name === "Learn A Lang!" || message.guild.id == "223933065074966529") {
+             order.process(client, message, args);
+           } else {
+             message.channel.sendMessage("This command doesn't exist.");
+           }
+        }
+
+        if(command === "server") {
+          order.process(client, message);
+        }
+
+        if(command === "lenny") {
+          order.process(client, message);
+        }
+
         if(command === "game") {
           order.process(client, message);
         }
 
+        if(command === "role") {
+          order.process(client, message, args);
+        }
 
-        // if(command === "role") {
-        //   var role = args.toLowerCase;
-        //   var roles = message.guild.roles;
-        //   roles;
-        //   // console.log(roles);
-        //
-        //   if(roles.indexOf(role) > -1) {
-        //   console.log("sup")
-        //   // order.process(client, message, args);
-        //   }
-        // }
-
+        if(command === "rolemembers") {
+          order.process(client, message, args);
+        }
 
         if(command === "say") {
+          if(message.guild.name === "Learn A Lang!") return message.channel.sendMessage("This command is deactivated on this server");
           order.process(client, message, args);
         }
 
@@ -226,6 +337,10 @@ function handleCommand(message) {
           uptime = parseInt(uptime);
           uptime = secondsToString(uptime);
           order.process(client, message, args, uptime);
+        }
+
+        if(command === "join") {
+            order.process(client, message);
         }
 
         if(command === "about") {
@@ -259,8 +374,6 @@ function handleCommand(message) {
       }
 
       // manage messages
-
-
         if(command === "makesay") {
           if(message.channel.permissionsFor(message.author).hasPermission("MANAGE_MESSAGES")) {
             order.process(client, message, args);
@@ -286,8 +399,21 @@ function handleCommand(message) {
         }
       }
 
-      if(command === "join") {
-        order.process(client, message);
+
+      if(command === "setgame") {
+        if(message.author.id != ownerid) {
+          message.reply("Who the hell do you think you are?");
+        } else {
+        order.process(client, message, args);
+        }
+      }
+
+      if(command === "embed") {
+        if(message.author.id != ownerid) {
+          message.reply("Who the hell do you think you are?");
+        } else {
+        order.process(client, message, args);
+        }
       }
 
 
@@ -312,7 +438,14 @@ function randomArray(arr) {
   return ret;
 }
 
-  // seconds to a more human time
+
+// calling DB to keep connection open
+function callDB(connection) {
+  setInterval(() => connection.query("SELECT 1"), 20000);
+};
+
+
+// seconds to a more human time
 function secondsToString(seconds) {
     try {
         var numyears = Math.floor(seconds / 31536000);
