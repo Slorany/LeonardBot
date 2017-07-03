@@ -1,25 +1,32 @@
-module.exports = {
-    name: "kick",
-    help: "kick <mention> [<reason>]",
-    process: function (client, message, args) {
-      if(message.channel.permissionsFor(client.user).hasPermission("KICK_MEMBERS")) {
-        if(message.content.indexOf("<@") > -1) {
-          var memberToKick = message.mentions.users.first();
-          var kicker = message.author.username;
+const Discord = require('discord.js');
+exports.run = (client, message, args) => {
+  let reason = args.slice(1).join(' ');
+  let user = message.mentions.users.first();
+  if (reason.length < 1) return message.reply('You must supply a reason for the kick.');
+  if (message.mentions.users.size < 1) return message.reply('You must mention someone to kick them.').catch(console.error);
 
-          message.guild.member(memberToKick).kick()
-          if(args.length > 1) {
-            var i = args.length;
-            var reason = args.slice(1, i).join(" ");
-            message.channel.sendMessage(memberToKick.username + " has been kicked by **" + kicker + "**.\n**Reason**: " + reason);
-          } else {
-            message.channel.sendMessage(memberToKick.username + " has been kicked by **" + kicker + "**.");
-          }
-        } else {
-          message.reply("I need a mention of the user.");
-        }
-      } else {
-        message.reply("I don't have the permission to do this.")
-      }
-    }
+  if (!message.guild.member(user).kickable) return message.reply('I cannot kick that member');
+  message.guild.member(user).kick();
+
+  const embed = new Discord.RichEmbed()
+    .setColor(0xfaa61a)
+    .setTimestamp()
+    .addField('Action:', 'kick')
+    .addField('User:', `${user.username}#${user.discriminator} (${user.id})`)
+    .addField('Reason:', `${reason}`)
+    .addField('Moderator:', `${message.author.username}#${message.author.discriminator}`)
+  return message.channel.sendEmbed(embed).catch(console.error);
+};
+
+exports.conf = {
+  enabled: true,
+  guildOnly: false,
+  aliases: [],
+  permLevel: 2
+};
+
+exports.help = {
+  name: 'kick',
+  description: 'Kicks the mentioned user.',
+  usage: 'kick [mention] [reason]'
 };
