@@ -1,79 +1,84 @@
-const Discord = require("discord.js");
+const Discord = require('discord.js');
 const client = new Discord.Client({autoReconnect: true});
-
+const config = require('./config.json');
 
 // modules
-const fs = require("fs");
-const ddiff = require("return-deep-diff");
+const fs = require('fs');
+const mysql = require('mysql');
+const moment = require('moment');
+// const ddiff = require('return-deep-diff');
+// const markov = require('markov-chains-text').default;
 
+require('./utils/eventLoader')(client);
+require('./utils/database');
 
-// files
-const config = require("./config.json");
+const sildefsfolder = './sildef';
+var sildefs = fs.readdir(sildefsfolder, (err, files) => {
+  defs = [];
+  files.forEach(file => {
+    // console.log(file);
+    defs.push(file);
+  });
+  // console.log(defs);
+});
+
+const langsfolder = './langs';
+var languages = fs.readdir(langsfolder, (err, files) => {
+  langs = [];
+  files.forEach(file => {
+    // console.log(file);
+    langs.push(file);
+  });
+  // console.log(langs);
+});
+
+const ownerid = config.ownerid;
+const serverid = config.serverid;
+const updateschannelid = config.updateschannelid;
+
 
 //mysql
-const mysql = require("mysql");
-var connection = mysql.createConnection({
+//    see utils/database.js
+
+var SQLConfig = {
   host      : config.mysqlHost,
   user      : config.mysqlUser,
   password  : config.mysqlPassword,
   database  : config.mysqlDatabase
-});
-
-connection.connect(function(err){
-  if(err){
-    console.log('Error connecting to database.');
-    console.log(err);
-  } else {
-    console.log('MySQL: Connection established');
-    callDB(connection);
-  }
-});
-
-//tumblr
-// Authenticate via OAuth
-var tumblr = require('tumblr.js');
-var tumblrClient = tumblr.createClient({
-  consumer_key: config.tumblrKey,
-  consumer_secret: config.tumblrSecret,
-  token: config.tumblrToken,
-  token_secret: config.tumblrTokenSecret
-});
-    // Make the request
-tumblrClient.userInfo(function (err, data) {
-        // ...
-});
-
-const db = require("./db.js");
-
-const commandsFolder = "./commands";
-const commandsList = fs.readdir(commandsFolder, (err, files) => {
-  commands = [];
-  files.forEach(file => {
-    // console.log(file);
-    commands.push(file);
+};
+connectDB = function() {
+  connection = mysql.createConnection(SQLConfig);
+  connection.connect(function (err) {
+    if (err) {
+      setTimeout(connectDB, 2000);
+    } else {
+      isConnected = true;
+      systemMessage('mySQL isConnected = ' + isConnected)
+    }
   });
-  // console.log(commands);
-});
-
-var commands = fs.readdir(commandsFolder, (err, files) => {
-  commands = [];
-  files.forEach(file => {
-    // console.log(file);
-    commands.push(file);
+  connection.on('error', function (err) {
+    systemMessage('Error: ' + err);
+    if(err.code === 'PROTOCOL_CONNECTION_LOST') {
+      connectDB();
+    } else {
+      throw err;
+    }
   });
-  // console.log(commands);
-});
+  return connection;
+};
 
-var ownerid = config.ownerid;
+systemMessage = function (message) {
+  console.log('=============================');
+  console.log(message);
+  console.log('=============================');
+};
 
+connectDB();
 
 // process events
 
-process.on("unhandledRejection", err => {
-  console.error("Uncaught Promise Error: \n" + err.stack);
-
-
-
+process.on('unhandledRejection', err => {
+  console.error('Uncaught Promise Error: \n' + err.stack);
 });
 
 process.on('SIGINT', function(message) {
@@ -83,351 +88,59 @@ process.on('SIGINT', function(message) {
     process.exit();
 });
 
-// client events
-
-client.on('ready', function() {
-  console.log("I am ready and connected to " + client.guilds.array().length + " servers.");
-});
-
-client.on('guildMemberAdd', function(member) {
-  let guild = member.guild;
-  if (guild.id == "182894318913191936") {
-    member.guild.channels.get("183670707522109440").sendMessage('', {embed: {
-      color: 3394611,
-      author: {
-        name: "New member",
-        icon_url: member.user.avatarURL
-      },
-      title: `${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`,
-      timestamp: new Date(),
-      footer: {
-        icon_url: client.user.avatarURL
-      }
-    }});
-  } else if(guild.id == "197160100274634752") {
-      return;
-  } else if(guild.id == "216702535656800257") {
-    member.guild.defaultChannel.sendMessage(`Welcome to Learn a Lang!, ${member.user}!\nYou will find instructions about how you can set up your roles and get access to the rest of the server in a PM from our bot Chomsky.\n**Type the commands here, one command per message.**`);
-  } else {
-    member.guild.defaultChannel.sendMessage('', {embed: {
-      color: 3394611,
-      author: {
-        name: "New member",
-        icon_url: member.user.avatarURL
-      },
-      title: `${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`,
-      timestamp: new Date(),
-      footer: {
-        icon_url: client.user.avatarURL
-      }
-    }});
-  }
-});
-
-client.on('guildMemberRemove', function(member) {
-  let guild = member.guild;
-  if (guild.id == "182894318913191936") {
-    member.guild.channels.get("183670707522109440").sendMessage('', {embed: {
-        color: 16744192,
-        author: {
-          name: "A member has left",
-          icon_url: member.user.avatarURL
-        },
-        title: `${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`,
-        timestamp: new Date(),
-        footer: {
-          icon_url: client.user.avatarURL
-        }
-      }});
-  } else {
-    member.guild.defaultChannel.sendMessage('', {embed: {
-      color: 16744192,
-      author: {
-        name: "A member has left",
-        icon_url: member.user.avatarURL
-      },
-      title: `${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`,
-      timestamp: new Date(),
-      footer: {
-        icon_url: client.user.avatarURL
-      }
-    }});
-  }
-});
-
-
-client.on('guildCreate', function(guild) {
-  console.log(`I have been added to the server ${guild.name}, owned by ${guild.owner.user.username}.`);
-  client.channels.get('258955100314140672').sendMessage(`I have been added to the server ${guild.name}, owned by ${guild.owner.user.username}.\n**Total servers:** ${client.guilds.array().length}.`);
-});
-
-client.on('guildDelete', function(guild){
-  client.channels.get('258955100314140672').sendMessage(`The server ${guild.name} didn't want me there anymore. :(\n**Total servers:** ${client.guilds.array().length}.`);
-});
-
-client.on("guildBanAdd", function(guild, user) {
-  if (guild.id == "182894318913191936") {
-    guild.channels.get("183670707522109440").sendMessage('', {embed: {
-      color: 13382451,
-      author: {
-        name: user.username + '#' + user.discriminator,
-        icon_url: user.avatarURL
-      },
-      title: 'A member has been banned',
-      description: `${user.username}#${user.discriminator} (ID: ${user.id}) has been banned.`,
-      timestamp: new Date(),
-      footer: {
-        icon_url: client.user.avatarURL
-      }
-    }});
-  } else {
-    guild.defaultChannel.sendMessage('', {embed: {
-      color: 13382451,
-      author: {
-        name: user.username + '#' + user.discriminator,
-        icon_url: user.avatarURL
-      },
-      title: 'A member has been banned',
-      description: `${user.username}#${user.discriminator} (ID: ${user.id}) has been banned.`,
-      timestamp: new Date(),
-      footer: {
-        icon_url: client.user.avatarURL
-      }
-    }});
-  }
-});
-
-client.on("guildBanRemove", function(guild, user) {
-  if (guild.id == "182894318913191936") {
-    guild.channels.get("183670707522109440").sendMessage('', {embed: {
-      color: 3355596,
-      author: {
-        name: user.username + '#' + user.discriminator,
-        icon_url: user.avatarURL
-      },
-      title: 'A member has been unbanned',
-      description: `${user.username}#${user.discriminator} (ID: ${user.id}) has been unbanned.`,
-      timestamp: new Date(),
-      footer: {
-        icon_url: client.user.avatarURL
-      }
-    }});
-  } else {
-    guild.defaultChannel.sendMessage('', {embed: {
-      color: 3355596,
-      author: {
-        name: user.username + '#' + user.discriminator,
-        icon_url: user.avatarURL
-      },
-      title: 'A member has been unbanned',
-      description: `${user.username}#${user.discriminator} (ID: ${user.id}) has been unbanned.`,
-      timestamp: new Date(),
-      footer: {
-        icon_url: client.user.avatarURL
-      }
-    }});
-  }
-});
-
-client.on('guildMemberUpdate', function(oMember, nMember) {
-  // console.log(ddiff(oMember, nMember));
-});
-
-client.on('guildUpdate', function(oGuild, nGuild) {
-  // console.log(ddiff(oGuild, nGuild));
-});
-
-
-
-
-client.on('message', message => {
-  if(message.author.bot) return;
-  if(!message.content.startsWith(config.prefix)) return;
-  if(message.content.substring(0, config.prefix.length) === config.prefix) {
-    handleCommand(message);
-  } else {
-    handleMessage(message);
-  }
-});
-
-
-
-
-
-
-
-// commands
-
-function handleCommand(message) {
-  if(message.channel.type == 'text') {
-    var command = message.content.split(" ")[0];
-    command = command.slice(config.prefix.length);
-    var listOfCommands = commands.map(e => e.replace(".js", ""));
-    // console.log(listOfCommands);
-
-    if(listOfCommands.indexOf(command) < 0) {
-      return;
-    } else {
-    let args = message.content.split(" ").slice(1);
-    let text = args.join(" ");
-
-    var order = require('./commands/' + command + '.js');
-
-    var d = new Date().toISOString().replace('T', ' ').substr(0, 19)
-    var logPlace = message.author.username + " (ID: " + message.author.id + ") on " + message.guild.name + "/#" + message.channel.name + "(" + message.guild.id + "/" + message.channel.id;
-    var logCommand = command + "' with arguments: '" + args.join(" ") + "'"
-
-    console.log(d + " - " + logPlace + ") tried command '" + logCommand);
-
-    order.process(client, message, args, commands, listOfCommands, command, connection);
-  // regular commands (not limited by a permission)
-        if(command === "help") {
-          order.process(client, message, args, commands, listOfCommands, command);
-        }
-
-        if(command === "choose" || command === "choice" || command === "decide" || command === "pick" ) {
-          var req = require('./commands/choose.js')
-            req.process(client, message, args);
-          }
-
-
-        if(command === "syntaxtest") {
-          order.process(client, message, args);
-        }
-
-        // if(command === "kill") {
-        //   order.process(client, message, args);
-        // }
-
-        if(command === "rules") {
-           if(message.guild.name === "Learn A Lang!" || message.guild.id == "223933065074966529") {
-             order.process(client, message, args);
-           } else {
-             message.channel.sendMessage("This command doesn't exist.");
-           }
-        }
-
-        if(command === "server") {
-          order.process(client, message);
-        }
-
-        if(command === "lenny") {
-          order.process(client, message);
-        }
-
-        if(command === "game") {
-          order.process(client, message);
-        }
-
-        if(command === "role") {
-          order.process(client, message, args);
-        }
-
-        if(command === "rolemembers") {
-          order.process(client, message, args);
-        }
-
-        if(command === "say") {
-          if(message.guild.name === "Learn A Lang!") return message.channel.sendMessage("This command is deactivated on this server");
-          order.process(client, message, args);
-        }
-
-        if(command === "info") {
-          var uptime = process.uptime();
-          uptime = parseInt(uptime);
-          uptime = secondsToString(uptime);
-          order.process(client, message, args, uptime);
-        }
-
-        if(command === "join") {
-            order.process(client, message);
-        }
-
-        if(command === "about") {
-          var uptime = process.uptime();
-          uptime = parseInt(uptime);
-          uptime = secondsToString(uptime);
-          order.process(client, message, args, uptime);
-        }
-
-        if(command === "serverinfo") {
-          order.process(client, message);
-        }
-
-  // admin commands (commands restricted to a permission)
-      // kick
-      if(command === "kick") {
-        if(message.channel.permissionsFor(message.author).hasPermission("KICK_MEMBERS")) {
-          order.process(client, message, args)
-        } else {
-          message.channel.sendMessage("You don't have permission to use this command.");
-        }
-      }
-
-      // ban
-      if(command === "ban") {
-        if(message.channel.permissionsFor(message.author).hasPermission("BAN_MEMBERS")) {
-          order.process(client, message, args)
-        } else {
-          message.channel.sendMessage("You don't have permission to use this command.");
-        }
-      }
-
-      // manage messages
-        if(command === "makesay") {
-          if(message.channel.permissionsFor(message.author).hasPermission("MANAGE_MESSAGES")) {
-            order.process(client, message, args);
-          } else {
-            message.channel.sendMessage("You don't have permission to use this command.");
-          }
-        }
-
-        if(command === "clean") {
-          if(message.channel.permissionsFor(message.author).hasPermission("MANAGE_MESSAGES")) {
-            order.process(client, message, args);
-          } else {
-            message.channel.sendMessage("You don't have permission to use this command.");
-          }
-        }
-
-    // owner commands
-      if(command === "eval") {
-        if(message.author.id != ownerid) {
-          message.reply("Who the hell do you think you are?");
-        } else {
-          order.process(client, message, args);
-        }
-      }
-
-
-      if(command === "setgame") {
-        if(message.author.id != ownerid) {
-          message.reply("Who the hell do you think you are?");
-        } else {
-        order.process(client, message, args);
-        }
-      }
-
-      if(command === "embed") {
-        if(message.author.id != ownerid) {
-          message.reply("Who the hell do you think you are?");
-        } else {
-        order.process(client, message, args);
-        }
-      }
-
-
-
-    }
-  }
+const log = message => {
+  console.log(`[${moment().format('YYYY-MM-DD HH:mm:ss')}] ${message}`);
 };
 
+client.commands = new Discord.Collection();
+client.aliases = new Discord.Collection();
+fs.readdir('./commands/', (err, files) => {
+  if (err) console.error(err);
+  log(`Loading a total of ${files.length} commands.`);
+  files.forEach(f => {
+    let props = require(`./commands/${f}`);
+    log(`Loading Command: ${props.help.name}. 👌`);
+    client.commands.set(props.help.name, props);
+    props.conf.aliases.forEach(alias => {
+      client.aliases.set(alias, props.help.name);
+    });
+  });
+});
 
-// functions
+client.reload = command => {
+  return new Promise((resolve, reject) => {
+    try {
+      delete require.cache[require.resolve(`./commands/${command}`)];
+      let cmd = require(`./commands/${command}`);
+      client.commands.delete(command);
+      client.aliases.forEach((cmd, alias) => {
+        if (cmd === command) client.aliases.delete(alias);
+      });
+      client.commands.set(command, cmd);
+      cmd.conf.aliases.forEach(alias => {
+        client.aliases.set(alias, cmd.help.name);
+      });
+      resolve();
+    } catch (e){
+      reject(e);
+    }
+  });
+};
 
+client.elevation = message => {
+  /* This function should resolve to an ELEVATION level which
+     is then sent to the command handler for verification*/
+  let permlvl = 0;
 
+  if(message.member.hasPermission('MANAGE_MESSAGES')) permlvl = 1;
+  if(message.member.hasPermission('MANAGE_GUILD')) permlvl = 2;
+  if(message.member.hasPermission('ADMINISTRATOR')) permlvl = 3;
+  if (message.author.id === config.ownerid) permlvl = 4;
 
-  // pick a random item in an array
+  return permlvl;
+};
+
+// pick a random item in an array
 function randomArray(arr) {
   var ret;
   if (arr.length > 0) {
@@ -436,49 +149,6 @@ function randomArray(arr) {
     ret = null;
   }
   return ret;
-}
-
-
-// calling DB to keep connection open
-function callDB(connection) {
-  setInterval(() => connection.query("SELECT 1"), 20000);
 };
-
-
-// seconds to a more human time
-function secondsToString(seconds) {
-    try {
-        var numyears = Math.floor(seconds / 31536000);
-        var numdays = Math.floor((seconds % 31536000) / 86400);
-        var numhours = Math.floor(((seconds % 31536000) % 86400) / 3600);
-        var numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
-        var numseconds = Math.round((((seconds % 31536000) % 86400) % 3600) % 60);
-
-        var str = "";
-        if(numyears>0) {
-            str += numyears + " year" + (numyears==1 ? "" : "s") + " ";
-        }
-        if(numdays>0) {
-            str += numdays + " day" + (numdays==1 ? "" : "s") + " ";
-        }
-        if(numhours>0) {
-            str += numhours + " hour" + (numhours==1 ? "" : "s") + " ";
-        }
-        if(numminutes>0) {
-            str += numminutes + " minute" + (numminutes==1 ? "" : "s") + " ";
-        }
-        if(numseconds>0) {
-            str += numseconds + " second" + (numseconds==1 ? "" : "s") + " ";
-        }
-        return str;
-    } catch(err) {
-        logMsg(Date.now(), "ERROR", "General", null, "Failed to process secondsToString request");
-        return;
-    }
-}
-
-
-
-
 
 client.login(config.token);
