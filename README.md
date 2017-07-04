@@ -1,10 +1,12 @@
 # LeonardBot
 
 
-V0.3
+V1: wow would this be an actually well coded bot? Maybe!
+
 
 CHANGELOG
 
+V0.3: modules
 
 V0.2: better help
 
